@@ -1079,9 +1079,14 @@
     <div class="mt16">
       <button class="btn btn-primary btn-full" onclick="mgSave('${pool.id}')">儲存變更</button>
     </div>
+    <div style="margin-top:12px;padding-top:16px;border-top:0.5px solid rgba(200,160,220,0.25);">
+      <button class="btn btn-full" onclick="mgDeletePool('${pool.id}', '${esc(pool.nickname)}')"
+        style="background:rgba(220,80,80,0.12);border:1px solid rgba(220,80,80,0.3);color:#c06060;font-size:0.78rem;letter-spacing:0.08em;">
+        🗑 刪除整個許願池
+      </button>
+    </div>
   `);
 
-    // store on window for closure access
     window._mgPool = JSON.parse(JSON.stringify(pool));
     window._mgRender = () => {
       document.getElementById('mg-list').innerHTML = renderItems(window._mgPool.wishes);
@@ -1103,6 +1108,30 @@
     window._mgPool.wishes.push({ name: '新的願望', link: '', reason: '', done: false });
     window._mgRender();
     mgEdit(window._mgPool.wishes.length - 1);
+  }
+
+  function mgDeletePool(poolId, nickname) {
+    openModal('🗑 確認刪除', `
+    <p style="font-size:0.88rem;color:var(--mid-text);line-height:1.7;margin-bottom:20px;">
+      確定要刪除 <strong>${esc(nickname)}</strong> 的整個許願池嗎？<br>
+      <span style="color:#c06060;font-size:0.82rem;">此操作無法復原，所有願望都會消失。</span>
+    </p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-soft" onclick="showManageModal(window._mgPool)" style="flex:1">← 取消</button>
+      <button class="btn btn-full" onclick="mgDeletePoolConfirm('${poolId}')"
+        style="flex:2;background:rgba(220,80,80,0.18);border:1px solid rgba(220,80,80,0.4);color:#c06060;">
+        確定刪除
+      </button>
+    </div>
+  `);
+  }
+
+  async function mgDeletePoolConfirm(poolId) {
+    const { error } = await db.from('wish_pools').delete().eq('id', poolId);
+    if (error) return toast('刪除失敗：' + error.message);
+    closeModal();
+    toast('✦ 許願池已刪除');
+    loadPools();
   }
 
   function mgEdit(i) {
