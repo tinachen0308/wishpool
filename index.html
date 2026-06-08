@@ -1217,69 +1217,101 @@
   // ══════════════════════════════════════
   let playing = false, audioCtx = null, musicTimer = null, noteIdx = 0;
 
-  // Spring Day 主旋律 — [頻率Hz, 時值秒]  0 = 休止
-  const Eb5=622.25, F5=698.46, G5=783.99, Bb5=932.33, C6=1046.50, D5=587.33, F6=1396.91;
+  // 天空之城 Castle in the Sky — C大調
+  // [頻率Hz, 時值秒]  0 = 休止  速度放慢，音符間有充足呼吸
+  // 天空之城 1=C ♩=87
+  // 四分音符 = 60/87 ≈ 0.69秒
+  // 下劃線 = 八分音符 0.345s，附點 = 1.5倍，- = 延音加一拍
+  const _q=0.69, _e=0.345, _dq=1.035, _h=1.38, _dh=2.07;
+  const C4=261.63,D4=293.66,E4=329.63,F4=349.23,G4=392.00,A4=440.00,B4=493.88;
+  const C5=523.25,D5=587.33,E5=659.25,F5=698.46,G5=783.99,A5=880.00,B5=987.77;
+  const Fs4=369.99, Fs5=739.99; // #4 = F#
+
   const SCORE = [
-    // 前奏 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 6· 0
-    [C6,0.55],[G5,0.55],[G5,0.36],[G5,0.55],[F5,0.55],[F5,0.36],
-    [F5,0.55],[Eb5,0.55],[Eb5,0.36],[Eb5,0.55],[C6,0.55],[0,0.55],
-    // 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 2· 0
-    [C6,0.55],[G5,0.55],[G5,0.36],[G5,0.55],[F5,0.55],[F5,0.36],
-    [F5,0.55],[Eb5,0.55],[Eb5,0.36],[Eb5,0.55],[F5,0.55],[0,0.55],
-    // 主歌 1 0 0 55 | 3 33 3 22· 1 2 1
-    [Eb5,0.55],[0,0.55],[0,0.36],[Bb5,0.20],[Bb5,0.20],
-    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[F5,0.18],[F5,0.27],[Eb5,0.27],[F5,0.27],[Eb5,0.55],
-    // 1 0 0 55 | 3333 3 22· 1 2 1
-    [Eb5,0.55],[0,0.55],[Bb5,0.27],[Bb5,0.27],
-    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[F5,0.18],[F5,0.27],[Eb5,0.27],[F5,0.27],[Eb5,0.55],
-    // Pre-chorus 1 0 11 1 2 1 | 1 0 11 1 2 5
-    [Eb5,0.55],[0,0.27],[Eb5,0.18],[Eb5,0.18],[Eb5,0.18],[F5,0.27],[Eb5,0.27],
-    [Eb5,0.55],[0,0.27],[Eb5,0.18],[Eb5,0.18],[Eb5,0.18],[F5,0.27],[Bb5,0.55],
-    // 3 33 355 3333· 5 | 2 52· 1 1  0 0
-    [G5,0.27],[G5,0.18],[G5,0.18],[Bb5,0.18],[Eb5,0.18],[Eb5,0.18],
-    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.27],[Bb5,0.36],
-    [F5,0.27],[Bb5,0.18],[F5,0.27],[Eb5,0.27],[Eb5,0.27],[0,0.55],
-    // 副歌 3· 33 1 | 2· 11 3
-    [G5,0.82],[G5,0.18],[G5,0.36],[Eb5,0.55],
-    [F5,0.82],[Eb5,0.18],[Eb5,0.36],[G5,0.55],
-    // 3· 33 1 | 2  0 1 1 5
-    [G5,0.82],[G5,0.18],[G5,0.36],[Eb5,0.55],
-    [F5,0.55],[0,0.27],[Eb5,0.27],[Eb5,0.27],[Bb5,0.55],
-    // 32 117 | 53 115
-    [G5,0.18],[F5,0.36],[Eb5,0.18],[Eb5,0.27],[D5,0.55],
-    [Bb5,0.18],[G5,0.36],[Eb5,0.18],[Eb5,0.27],[Bb5,0.55],
-    // 32 117 | 53 0 1 3
-    [G5,0.18],[F5,0.36],[Eb5,0.18],[Eb5,0.27],[D5,0.55],
-    [Bb5,0.18],[G5,0.36],[0,0.27],[Eb5,0.27],[G5,0.55],
+    // 6̲ 7̲ | 1·  7̲ 1  3 | 7 - - 3
+    [A4,_e],[B4,_e],
+    [C5,_dq],[B4,_e],[C5,_q],[E5,_q],
+    [B4,_h],[0,_q],[E5,_q],
+
+    // 6·  5̲ 6  1 | 5 - - 3
+    [A5,_dq],[G5,_e],[A5,_q],[C5,_q],
+    [G5,_h],[0,_q],[E5,_q],
+
+    // 4·  3̲ 4  1· | 3 - - 1
+    [F5,_dq],[E5,_e],[F5,_q],[C5,_dq],
+    [E5,_h],[0,_q],[C5,_q],
+
+    // 7·  #4̲ #4  7 | 7 - - 6̲ 7̲
+    [B4,_dq],[Fs4,_e],[Fs4,_q],[B4,_q],
+    [B4,_h],[0,_e],[A4,_e],[B4,_e],
+
+    // 1·  7̲ 1  3 | 7 - - 3̲ 3̲
+    [C5,_dq],[B4,_e],[C5,_q],[E5,_q],
+    [B4,_h],[0,_e],[E5,_e],[E5,_e],
+
+    // 6·  5̲ 6  1 | 5 - - 3
+    [A5,_dq],[G5,_e],[A5,_q],[C5,_q],
+    [G5,_h],[0,_q],[E5,_q],
+
+    // 4  1̲  7·  1 | 2  3̲1̲ 1  -
+    [F5,_q],[C5,_e],[B4,_dq],[C5,_q],
+    [D5,_q],[E5,_e],[C5,_e],[C5,_q],[0,_q],
+
+    // 1̲7̲ 6  7  #5 | 6 - - 1̲ 2̲
+    [C5,_e],[B4,_e],[A4,_q],[B4,_q],[Fs4,_q],
+    [A4,_h],[0,_e],[C5,_e],[D5,_e],
+
+    // 3·  2̲ 3  5 | 2 - - 5̲
+    [E5,_dq],[D5,_e],[E5,_q],[G5,_q],
+    [D5,_h],[0,_e],[G5,_e],
+
+    // 1·  7̲ 1  2̲3̲ | 3 - - -
+    [C5,_dq],[B4,_e],[C5,_q],[D5,_e],[E5,_e],
+    [E5,_h],[0,_h],
+
+    // 6̲7̲ 1  7̲1̲ 2 | 1·  5̲ 5  -
+    [A4,_e],[B4,_e],[C5,_q],[B4,_e],[C5,_e],[D5,_q],
+    [C5,_dq],[G4,_e],[G4,_q],[0,_q],
+
+    // 4  3  2  1 | 3 - - 3
+    [F5,_q],[E5,_q],[D5,_q],[C5,_q],
+    [E5,_h],[0,_q],[E5,_q],
+
+    // 6·  6̲ 5·  5̲ | 3̲2̲ 1  1  -
+    [A5,_dq],[A5,_e],[G5,_dq],[G5,_e],
+    [E5,_e],[D5,_e],[C5,_q],[C5,_q],[0,_q],
+
+    // 2·  1̲ 2  5 | 3 - - 3
+    [D5,_dq],[C5,_e],[D5,_q],[G5,_q],
+    [E5,_h],[0,_q],[E5,_q],
+
+    // 6·  6̲ 5·  5̲ | 3̲2̲ 1  1  -
+    [A5,_dq],[A5,_e],[G5,_dq],[G5,_e],
+    [E5,_e],[D5,_e],[C5,_q],[C5,_q],[0,_q],
+
+    // 2·  1̲ 2  7 | 6 - - 0
+    [D5,_dq],[C5,_e],[D5,_q],[B4,_q],
+    [A4,_h],[0,_h],
   ];
 
   function playTine(freq, duration) {
     if (!audioCtx || freq === 0) return;
     const osc = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const now = audioCtx.currentTime;
 
     osc.type = 'sine';
     osc.frequency.value = freq;
-    osc2.type = 'sine';
-    osc2.frequency.value = freq * 2; // octave harmonic
 
-    const g2 = audioCtx.createGain();
-    g2.gain.value = 0.08;
-
+    // 純粹短促的撥片聲，無泛音無長尾
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.45, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.07);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.min(duration * 2.5, 3.5));
+    gain.gain.linearRampToValueAtTime(0.5, now + 0.004);  // 極速起音
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8); // 短促收音
 
     osc.connect(gain);
-    osc2.connect(g2);
     gain.connect(audioCtx.destination);
-    g2.connect(audioCtx.destination);
-
-    osc.start(now); osc.stop(now + 4);
-    osc2.start(now); osc2.stop(now + 1.5);
+    osc.start(now);
+    osc.stop(now + 0.85);
   }
 
   function tick() {
@@ -1305,19 +1337,20 @@
   document.getElementById('music-fab').addEventListener('click', async () => {
     const btn = document.getElementById('music-fab');
     if (playing) {
-      stopMusic();
       playing = false;
+      stopMusic();
       btn.textContent = '♪';
       btn.classList.remove('playing');
     } else {
-      btn.textContent = '…';
+      playing = true;  // 必須在 startMusic() 之前設定，否則 tick() 會立刻停止
+      btn.textContent = '♬';
+      btn.classList.add('playing');
       try {
         await startMusic();
-        playing = true;
-        btn.textContent = '♬';
-        btn.classList.add('playing');
       } catch(e) {
+        playing = false;
         btn.textContent = '♪';
+        btn.classList.remove('playing');
         console.error(e);
       }
     }
