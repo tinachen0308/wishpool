@@ -1342,7 +1342,7 @@
       btn.textContent = '♪';
       btn.classList.remove('playing');
     } else {
-      playing = true;  // 必須在 startMusic() 之前設定，否則 tick() 會立刻停止
+      playing = true;
       btn.textContent = '♬';
       btn.classList.add('playing');
       try {
@@ -1355,6 +1355,27 @@
       }
     }
   });
+
+  // 第一次點擊頁面任何地方就自動開始播音樂
+  async function autoPlay() {
+    if (playing) return;
+    const btn = document.getElementById('music-fab');
+    playing = true;
+    btn.textContent = '♬';
+    btn.classList.add('playing');
+    try {
+      await startMusic();
+    } catch(e) {
+      playing = false;
+      btn.textContent = '♪';
+      btn.classList.remove('playing');
+    }
+  }
+
+  document.addEventListener('click', function onFirstClick() {
+    autoPlay();
+    document.removeEventListener('click', onFirstClick); // 只觸發一次
+  }, { once: true });
 
   // ── Init ──
   addWishFormItem();
