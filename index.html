@@ -1214,150 +1214,93 @@
   });
 
   // ══════════════════════════════════════
+  // MUSIC BOX — Web Audio API (直接版)
   // ══════════════════════════════════════
-  // MUSIC BOX — Tone.js
-  // ══════════════════════════════════════
-  let playing = false, synth = null, seq = null, padSynth = null, reverbNode = null;
+  let playing = false, audioCtx = null, musicTimer = null, noteIdx = 0;
+
+  // Spring Day 主旋律 — [頻率Hz, 時值秒]  0 = 休止
+  const Eb5=622.25, F5=698.46, G5=783.99, Bb5=932.33, C6=1046.50, D5=587.33, F6=1396.91;
+  const SCORE = [
+    // 前奏 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 6· 0
+    [C6,0.55],[G5,0.55],[G5,0.36],[G5,0.55],[F5,0.55],[F5,0.36],
+    [F5,0.55],[Eb5,0.55],[Eb5,0.36],[Eb5,0.55],[C6,0.55],[0,0.55],
+    // 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 2· 0
+    [C6,0.55],[G5,0.55],[G5,0.36],[G5,0.55],[F5,0.55],[F5,0.36],
+    [F5,0.55],[Eb5,0.55],[Eb5,0.36],[Eb5,0.55],[F5,0.55],[0,0.55],
+    // 主歌 1 0 0 55 | 3 33 3 22· 1 2 1
+    [Eb5,0.55],[0,0.55],[0,0.36],[Bb5,0.20],[Bb5,0.20],
+    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[F5,0.18],[F5,0.27],[Eb5,0.27],[F5,0.27],[Eb5,0.55],
+    // 1 0 0 55 | 3333 3 22· 1 2 1
+    [Eb5,0.55],[0,0.55],[Bb5,0.27],[Bb5,0.27],
+    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[G5,0.18],[F5,0.18],[F5,0.27],[Eb5,0.27],[F5,0.27],[Eb5,0.55],
+    // Pre-chorus 1 0 11 1 2 1 | 1 0 11 1 2 5
+    [Eb5,0.55],[0,0.27],[Eb5,0.18],[Eb5,0.18],[Eb5,0.18],[F5,0.27],[Eb5,0.27],
+    [Eb5,0.55],[0,0.27],[Eb5,0.18],[Eb5,0.18],[Eb5,0.18],[F5,0.27],[Bb5,0.55],
+    // 3 33 355 3333· 5 | 2 52· 1 1  0 0
+    [G5,0.27],[G5,0.18],[G5,0.18],[Bb5,0.18],[Eb5,0.18],[Eb5,0.18],
+    [G5,0.18],[G5,0.18],[G5,0.18],[G5,0.27],[Bb5,0.36],
+    [F5,0.27],[Bb5,0.18],[F5,0.27],[Eb5,0.27],[Eb5,0.27],[0,0.55],
+    // 副歌 3· 33 1 | 2· 11 3
+    [G5,0.82],[G5,0.18],[G5,0.36],[Eb5,0.55],
+    [F5,0.82],[Eb5,0.18],[Eb5,0.36],[G5,0.55],
+    // 3· 33 1 | 2  0 1 1 5
+    [G5,0.82],[G5,0.18],[G5,0.36],[Eb5,0.55],
+    [F5,0.55],[0,0.27],[Eb5,0.27],[Eb5,0.27],[Bb5,0.55],
+    // 32 117 | 53 115
+    [G5,0.18],[F5,0.36],[Eb5,0.18],[Eb5,0.27],[D5,0.55],
+    [Bb5,0.18],[G5,0.36],[Eb5,0.18],[Eb5,0.27],[Bb5,0.55],
+    // 32 117 | 53 0 1 3
+    [G5,0.18],[F5,0.36],[Eb5,0.18],[Eb5,0.27],[D5,0.55],
+    [Bb5,0.18],[G5,0.36],[0,0.27],[Eb5,0.27],[G5,0.55],
+  ];
+
+  function playTine(freq, duration) {
+    if (!audioCtx || freq === 0) return;
+    const osc = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2; // octave harmonic
+
+    const g2 = audioCtx.createGain();
+    g2.gain.value = 0.08;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.07);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.min(duration * 2.5, 3.5));
+
+    osc.connect(gain);
+    osc2.connect(g2);
+    gain.connect(audioCtx.destination);
+    g2.connect(audioCtx.destination);
+
+    osc.start(now); osc.stop(now + 4);
+    osc2.start(now); osc2.stop(now + 1.5);
+  }
+
+  function tick() {
+    if (!playing) return;
+    const [freq, dur] = SCORE[noteIdx];
+    playTine(freq, dur);
+    noteIdx = (noteIdx + 1) % SCORE.length;
+    musicTimer = setTimeout(tick, dur * 1000);
+  }
 
   async function startMusic() {
-    await Tone.start();
-
-    // Reverb
-    reverbNode = new Tone.Reverb({ decay: 5, preDelay: 0.01, wet: 0.5 }).toDestination();
-    await reverbNode.generate();
-
-    // Chorus sparkle
-    const chorus = new Tone.Chorus({ frequency: 0.6, delayTime: 2, depth: 0.3, wet: 0.25 }).connect(reverbNode);
-    chorus.start();
-
-    // Music box synth
-    synth = new Tone.PolySynth(Tone.AMSynth, {
-      harmonicity: 2,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.6, sustain: 0.0, release: 3.0 },
-      modulation: { type: 'sine' },
-      modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0.0, release: 1.5 },
-      volume: -6,
-    }).connect(chorus);
-
-    // Pad synth
-    padSynth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'triangle' },
-      envelope: { attack: 1.2, decay: 0.5, sustain: 0.5, release: 3.0 },
-      volume: -28,
-    }).connect(reverbNode);
-
-    // ── Spring Day (BTS) — 1=Eb, 主旋律轉換 ──
-    // 簡譜對照 Eb大調: 1=Eb 2=F 3=G 4=Ab 5=Bb 6=C 7=D
-    // 音域選高八度 (5th octave) 讓音樂盒感更清亮
-    // 點號(·)= 附點，下劃線=快速音符，0=休止
-
-    // 每個元素: [音名, 時值秒數]  null = 休止
-    const score = [
-      // ── 前奏 A段 (1-4小節) ──
-      // 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 6· 0
-      ['C6',0.55], ['G5',0.55], ['G5',0.36],
-      ['G5',0.55], ['F5',0.55], ['F5',0.36],
-      ['F5',0.55], ['Eb5',0.55], ['Eb5',0.36],
-      ['Eb5',0.55], ['C5',0.55], [null,0.36],
-
-      // 6· 3· 3  3· 2· 2 | 2· 1· 1  1· 2· 0
-      ['C6',0.55], ['G5',0.55], ['G5',0.36],
-      ['G5',0.55], ['F5',0.55], ['F5',0.36],
-      ['F5',0.55], ['Eb5',0.55], ['Eb5',0.36],
-      ['Eb5',0.55], ['F5',0.55], [null,0.36],
-
-      // ── 主歌 B段 (9-12小節) ──
-      // 1  0  0  0 55 | 3 33 3 22· 1 2 1
-      ['Eb5',0.55], [null,0.55], [null,0.55],
-      ['Bb5',0.18],['Bb5',0.18],
-      ['G5',0.18],['G5',0.18],['G5',0.18],['G5',0.18],
-      ['F5',0.18],['F5',0.27],
-      ['Eb5',0.27],['F5',0.27],['Eb5',0.36],
-
-      // 1  0  0  5 5 | 3333 3 22· 1 2 1
-      ['Eb5',0.55], [null,0.55],
-      ['Bb5',0.27],['Bb5',0.27],
-      ['G5',0.18],['G5',0.18],['G5',0.18],['G5',0.18],
-      ['G5',0.18],['F5',0.18],['F5',0.27],
-      ['Eb5',0.27],['F5',0.27],['Eb5',0.36],
-
-      // ── Pre-chorus (13-16) ──
-      // 1  0 11̄ 1̄ 2 1 | 1  0 11̄ 1̄ 2 5
-      ['Eb5',0.55],[null,0.27],
-      ['Eb5',0.18],['Eb5',0.18],['Eb5',0.18],['F5',0.27],['Eb5',0.27],
-      ['Eb5',0.55],[null,0.27],
-      ['Eb5',0.18],['Eb5',0.18],['Eb5',0.18],['F5',0.27],['Bb5',0.55],
-
-      // 3 33 355  3333· 5 | 2 52· 1 1  0 0
-      ['G5',0.27],['G5',0.18],['G5',0.18],['Bb5',0.18],['Eb6',0.18],['Eb6',0.18],
-      ['G5',0.18],['G5',0.18],['G5',0.18],['G5',0.27],['Bb5',0.36],
-      ['F5',0.27],['Bb5',0.18],['F5',0.27],['Eb5',0.27],['Eb5',0.27],[null,0.55],
-
-      // ── 副歌 Chorus (33-40) ──
-      // 3·  3̄ 3 1 | 2·  1̄ 1 3
-      ['G5',0.82],['G5',0.18],['G5',0.36],['Eb5',0.55],
-      ['F5',0.82],['Eb5',0.18],['Eb5',0.36],['G5',0.55],
-
-      // 3·  3̄ 3 1 | 2  0 1 1 5
-      ['G5',0.82],['G5',0.18],['G5',0.36],['Eb5',0.55],
-      ['F5',0.55],[null,0.27],['Eb5',0.27],['Eb5',0.27],['Bb5',0.55],
-
-      // 3̄ 2  1̄ 1 7 | 5̄ 3  1̄ 1 5
-      ['G5',0.18],['F5',0.36],['Eb5',0.18],['Eb5',0.27],['D5',0.55],
-      ['Bb5',0.18],['G5',0.36],['Eb5',0.18],['Eb5',0.27],['Bb5',0.55],
-
-      // 3̄ 2  1̄ 1 7 | 5̄ 3  0 1 3
-      ['G5',0.18],['F5',0.36],['Eb5',0.18],['Eb5',0.27],['D5',0.55],
-      ['Bb5',0.18],['G5',0.36],[null,0.27],['Eb5',0.27],['G5',0.55],
-    ];
-
-    // 副歌 pad 和弦 (Eb大調: I IV V vi)
-    const padChords = [
-      ['Eb3','G3','Bb3'],  // I  - Eb
-      ['Ab3','C4','Eb4'],  // IV - Ab
-      ['Bb3','D4','F4'],   // V  - Bb
-      ['C3','Eb3','G3'],   // vi - Cm
-    ];
-
-    let noteIdx = 0, padIdx = 0, loopCount = 0;
-
-    function schedulePhrase() {
-      if (!playing) return;
-      const now = Tone.now();
-      let cursor = 0;
-
-      // 每4次loop換一次pad和弦
-      if (noteIdx === 0) {
-        const chord = padChords[padIdx % padChords.length];
-        padSynth.triggerAttackRelease(chord, '2n', now + 0.05);
-      }
-
-      // 播一個音符
-      const [note, dur] = score[noteIdx];
-      if (note !== null) {
-        synth.triggerAttackRelease(note, Math.max(dur * 0.85, 0.08), now);
-      }
-
-      noteIdx++;
-      if (noteIdx >= score.length) {
-        noteIdx = 0;
-        loopCount++;
-        if (loopCount % 4 === 0) padIdx++;
-      }
-
-      const nextDur = score[noteIdx] ? score[noteIdx][1] : 0.36;
-      seq = setTimeout(schedulePhrase, nextDur * 1000);
-    }
-
-    schedulePhrase();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    noteIdx = 0;
+    tick();
   }
 
   function stopMusic() {
-    if (seq) { clearTimeout(seq); seq = null; }
-    try { if (synth) { synth.releaseAll(); synth.dispose(); synth = null; } } catch(e){}
-    try { if (padSynth) { padSynth.releaseAll(); padSynth.dispose(); padSynth = null; } } catch(e){}
-    try { if (reverbNode) { reverbNode.dispose(); reverbNode = null; } } catch(e){}
+    if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; }
+    if (audioCtx) { try { audioCtx.close(); } catch(e){} audioCtx = null; }
   }
 
   document.getElementById('music-fab').addEventListener('click', async () => {
