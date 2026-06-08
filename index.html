@@ -414,6 +414,33 @@
       font-weight: 400;
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     }
+    .bday-badge {
+      font-size: 0.62rem;
+      background: linear-gradient(135deg, rgba(232,180,200,0.35), rgba(212,184,232,0.35));
+      border: 1px solid rgba(200,160,220,0.4);
+      color: var(--mid-text);
+      padding: 2px 9px;
+      border-radius: 50px;
+      font-weight: 400;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .bday-badge.bday-soon {
+      background: linear-gradient(135deg, rgba(248,200,160,0.45), rgba(232,180,140,0.35));
+      border-color: rgba(220,160,100,0.45);
+      color: #a07040;
+    }
+    .bday-badge.bday-today {
+      background: linear-gradient(135deg, rgba(255,215,100,0.45), rgba(255,180,120,0.35));
+      border-color: rgba(220,180,80,0.55);
+      color: #906020;
+      animation: bdayPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes bdayPulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+
     .done-badge {
       font-size: 0.65rem;
       background: linear-gradient(135deg, rgba(160,220,180,0.4), rgba(140,200,200,0.4));
@@ -944,7 +971,7 @@
 
     const { data, error } = await db
             .from('wish_pools')
-            .select('id, nickname, wishes')
+            .select('id, nickname, birthday, wishes')
             .order('created_at', { ascending: false });
 
     if (error) {
@@ -980,11 +1007,25 @@
     zone.innerHTML = `<div class="pools-list">${data.map(p => poolCard(p)).join('')}</div>`;
   }
 
+  function birthdayCountdown(birthday) {
+    if (!birthday) return '';
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const bday = new Date(birthday);
+    const next = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+    if (next < today) next.setFullYear(today.getFullYear() + 1);
+    const diff = Math.round((next - today) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return `<span class="bday-badge bday-today">🎂 今天生日！</span>`;
+    if (diff <= 7)  return `<span class="bday-badge bday-soon">🎁 ${diff} 天後生日</span>`;
+    return `<span class="bday-badge">🎂 ${diff} 天後生日</span>`;
+  }
+
   function poolCard(p) {
     const wishes = p.wishes || [];
     const active = wishes.filter(w => !w.done).length;
     const done = wishes.filter(w => w.done).length;
     const char = p.nickname ? p.nickname[0] : '✦';
+    const bday = birthdayCountdown(p.birthday);
     return `
   <div class="pool-card" id="pc-${p.id}">
     <div class="pool-header">
@@ -992,7 +1033,7 @@
         <div class="avatar-inner">${char}</div>
       </div>
       <div class="pool-meta">
-        <div class="pool-name">${esc(p.nickname)}</div>
+        <div class="pool-name">${esc(p.nickname)} ${bday}</div>
         <div class="pool-count">${active} 個願望${done > 0 ? `・${done} 個已實現` : ''}</div>
       </div>
       <div class="pool-actions">
