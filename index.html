@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Noto+Sans+TC:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;1,300&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1216,58 +1217,35 @@
   // ══════════════════════════════════════
   // MUSIC BOX — Tone.js
   // ══════════════════════════════════════
-  let toneReady = false, playing = false, synth = null, seq = null, padSynth = null;
-
-  async function loadTone() {
-    if (toneReady) return;
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    toneReady = true;
-  }
+  let playing = false, synth = null, seq = null, padSynth = null, reverbNode = null;
 
   async function startMusic() {
-    await loadTone();
     await Tone.start();
 
-    // Bright hall reverb — long tail for crystal shimmer
-    const reverb = new Tone.Reverb({ decay: 6, preDelay: 0.02, wet: 0.55 }).toDestination();
-    await reverb.generate();
+    // Reverb
+    reverbNode = new Tone.Reverb({ decay: 5, preDelay: 0.01, wet: 0.5 }).toDestination();
+    await reverbNode.generate();
 
-    // Chorus for extra sparkle
-    const chorus = new Tone.Chorus({ frequency: 0.8, delayTime: 2.5, depth: 0.4, wet: 0.3 }).connect(reverb);
+    // Chorus sparkle
+    const chorus = new Tone.Chorus({ frequency: 0.6, delayTime: 2, depth: 0.3, wet: 0.25 }).connect(reverbNode);
     chorus.start();
 
-    // ── Crystal / Music Box tine synth ──
-    // AMSynth with sine carrier + sine modulator = pure, bell-like ping
+    // Music box synth
     synth = new Tone.PolySynth(Tone.AMSynth, {
       harmonicity: 2,
       oscillator: { type: 'sine' },
-      envelope: {
-        attack: 0.001,   // instant — like a struck tine
-        decay: 0.6,
-        sustain: 0.0,    // zero sustain = staccato ping, fades naturally
-        release: 3.0,    // long release for crystal ring-out
-      },
+      envelope: { attack: 0.001, decay: 0.6, sustain: 0.0, release: 3.0 },
       modulation: { type: 'sine' },
-      modulationEnvelope: {
-        attack: 0.001,
-        decay: 0.3,
-        sustain: 0.0,
-        release: 1.5,
-      },
-      volume: -8,
+      modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0.0, release: 1.5 },
+      volume: -6,
     }).connect(chorus);
 
-    // ── Soft high-register pad (very quiet, just air) ──
+    // Pad synth
     padSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'triangle' },
       envelope: { attack: 1.2, decay: 0.5, sustain: 0.5, release: 3.0 },
-      volume: -30,
-    }).connect(reverb);
+      volume: -28,
+    }).connect(reverbNode);
 
     // ── Spring Day (BTS) — 1=Eb, 主旋律轉換 ──
     // 簡譜對照 Eb大調: 1=Eb 2=F 3=G 4=Ab 5=Bb 6=C 7=D
@@ -1377,9 +1355,9 @@
 
   function stopMusic() {
     if (seq) { clearTimeout(seq); seq = null; }
-    if (synth) { synth.releaseAll(); synth.dispose(); synth = null; }
-    if (padSynth) { padSynth.releaseAll(); padSynth.dispose(); padSynth = null; }
-    try { Tone.Transport.stop(); } catch(e) {}
+    try { if (synth) { synth.releaseAll(); synth.dispose(); synth = null; } } catch(e){}
+    try { if (padSynth) { padSynth.releaseAll(); padSynth.dispose(); padSynth = null; } } catch(e){}
+    try { if (reverbNode) { reverbNode.dispose(); reverbNode = null; } } catch(e){}
   }
 
   document.getElementById('music-fab').addEventListener('click', async () => {
